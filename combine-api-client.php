@@ -39,8 +39,8 @@ EOT;
 }
 
 // SIMPLE CONFIG
-$api_dir = './';
-$out_file = 'kaspay_api.combined.php';
+$api_dir = './src/';
+$out_file = 'dist/kaspay_api.combined.php';
 $files = array( // default files included
 	'kaspay_api_call.php',
 	'kaspay_api_cryptor.php',
