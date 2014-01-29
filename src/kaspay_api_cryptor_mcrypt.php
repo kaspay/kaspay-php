@@ -4,9 +4,18 @@
  */
 class Kaspay_api_cryptor_mcrypt extends Kaspay_api_cryptor {
 
+	private function filter_key($key)
+	{
+		// if too short
+		$key = str_pad($key, self::KEY_SIZE, "\0", STR_PAD_RIGHT);
+		// if too long
+		$key = substr($key, 0, self::KEY_SIZE);
+		return $key;
+	}
+
 	public function encrypt($key, $plaintext)
 	{
-		$key = str_pad($key, self::KEY_SIZE, "\0", STR_PAD_RIGHT);
+		$key = $this->filter_key($key);
 		$iv = mcrypt_create_iv(self::IV_SIZE, MCRYPT_DEV_URANDOM);
 		
 		$padding = self::BLOCK_SIZE - (strlen($plaintext) % self::BLOCK_SIZE);
@@ -17,7 +26,7 @@ class Kaspay_api_cryptor_mcrypt extends Kaspay_api_cryptor {
 
 	public function decrypt($key, $ciphertext)
 	{
-		$key = str_pad($key, self::KEY_SIZE, "\0", STR_PAD_RIGHT);
+		$key = $this->filter_key($key);
 		$iv = substr($ciphertext, 0, self::IV_SIZE);
 		$ciphertext_raw = substr($ciphertext, self::IV_SIZE);
 

@@ -30,7 +30,7 @@ class Kaspay_api_call {
 	 */
 	protected $url;
 	/**
-	 * @var string Merchant's identifier
+	 * @var string User's identifier
 	 */
 	protected $uaccount;
 	/**

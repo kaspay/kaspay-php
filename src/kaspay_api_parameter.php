@@ -13,7 +13,7 @@ class Kaspay_api_parameter {
 	 */
 	protected $url;
 	/**
-	 * @var string Merchant's identifier
+	 * @var string User's identifier
 	 */
 	protected $uaccount;
 	/**
