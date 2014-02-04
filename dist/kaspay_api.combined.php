@@ -31,7 +31,7 @@ class Kaspay_api_call {
 	 */
 	protected $url;
 	/**
-	 * @var string Merchant's identifier
+	 * @var string User's identifier
 	 */
 	protected $uaccount;
 	/**
@@ -211,9 +211,18 @@ class Kaspay_api_cryptor_exception extends Exception {
  */
 class Kaspay_api_cryptor_mcrypt extends Kaspay_api_cryptor {
 
+	private function filter_key($key)
+	{
+		// if too short
+		$key = str_pad($key, self::KEY_SIZE, "\0", STR_PAD_RIGHT);
+		// if too long
+		$key = substr($key, 0, self::KEY_SIZE);
+		return $key;
+	}
+
 	public function encrypt($key, $plaintext)
 	{
-		$key = str_pad($key, self::KEY_SIZE, "\0", STR_PAD_RIGHT);
+		$key = $this->filter_key($key);
 		$iv = mcrypt_create_iv(self::IV_SIZE, MCRYPT_DEV_URANDOM);
 		
 		$padding = self::BLOCK_SIZE - (strlen($plaintext) % self::BLOCK_SIZE);
@@ -224,7 +233,7 @@ class Kaspay_api_cryptor_mcrypt extends Kaspay_api_cryptor {
 
 	public function decrypt($key, $ciphertext)
 	{
-		$key = str_pad($key, self::KEY_SIZE, "\0", STR_PAD_RIGHT);
+		$key = $this->filter_key($key);
 		$iv = substr($ciphertext, 0, self::IV_SIZE);
 		$ciphertext_raw = substr($ciphertext, self::IV_SIZE);
 
@@ -281,7 +290,7 @@ class Kaspay_api_parameter {
 	 */
 	protected $url;
 	/**
-	 * @var string Merchant's identifier
+	 * @var string User's identifier
 	 */
 	protected $uaccount;
 	/**
@@ -596,47 +605,56 @@ class Kaspay_api_client {
 	}
 }
 
-
 /**
- *
- * @author Karol Danutama <karol.danutama@gdpventure.com>
+ * Kaspay API Client: Escrow
  */
-class Kaspay_user_api_client extends Kaspay_api_client {
+class Kaspay_escrow_api_client extends Kaspay_api_client {
 
-	const URL_LINK = 'user/link/%s';
-
-	const URL_UNLINK = 'user/unlink/%s/%s';
-
+	const URL_HOLD = 'escrow/hold/%s';
+	const URL_RELEASE = 'escrow/release/%s';
+	const URL_REFUND = 'escrow/refund/%s';
+	const URL_STATUS = 'escrow/status/%s';
+	
 	/**
-	 * 
-	 * @param string $merchant_uaccount A uaccount associated with the merchant (API client)
-	 * @param string $approve_url A complete URL for Kaspay to redirect the user after user approval.
-	 * @param string $approve_url A complete URL for Kaspay to redirect the user after user rejection.
-	 * @return object(id,confirmation_url) id:attempt id, confirmation_url: redirect the user to this page for approval
+	 * @param  string $trxid  Perform HOLD operation on this transaction
+	 * @return object(status) status: TRUE
 	 */
-	public function link($merchant_uaccount, $approve_url, $reject_url)
+	public function perform_hold($trxid)
 	{
-		$full_url = sprintf($this->base_url . self::URL_LINK, $merchant_uaccount);
-		$this->send_request('POST', $full_url, json_encode(array(
-			'approve_url' => $approve_url,
-			'reject_url' => $reject_url
-		)));
+		$full_url = sprintf($this->base_url . self::URL_HOLD, $trxid);
+		$this->send_request('POST', $full_url, json_encode(array()));
 	}
-
+	
 	/**
-	 * 
-	 * @param string $uaccount A uaccount associated with a user
-	 * @param string $merchant_uaccount A uaccount associated with the merchant (API client)
-	 * @return object(uaccount,message) uaccount:unlinked uaccount, message: info message
+	 * @param  string $trxid  Perform RELEASE operation on this transaction
+	 * @return object(status) status: TRUE
 	 */
-	public function unlink($uaccount, $merchant_uaccount)
+	public function perform_release($trxid)
 	{
-		$full_url = sprintf($this->base_url . self::URL_UNLINK, $uaccount, $merchant_uaccount);
+		$full_url = sprintf($this->base_url . self::URL_RELEASE, $trxid);
+		$this->send_request('POST', $full_url, json_encode(array()));
+	}
+	
+	/**
+	 * @param  string $trxid  Perform REFUND operation on this transaction
+	 * @return object(status) status: TRUE
+	 */
+	public function perform_refund($trxid)
+	{
+		$full_url = sprintf($this->base_url . self::URL_REFUND, $trxid);
 		$this->send_request('POST', $full_url, json_encode(array()));
 	}
 
+	/**
+	 * @param  string $trxid  Retrieve STATUS of this transaction's escrow
+	 * @return object(status, escrow_status) status: TRUE, escrow_status: Active|Suspended|Released|Refunded
+	 */
+	public function check_status($trxid)
+	{
+		$full_url = sprintf($this->base_url . self::URL_STATUS, $trxid);
+		$this->send_request('GET', $full_url, json_encode(array()));
+	}
 }
-
 
 
 /**
@@ -696,53 +714,43 @@ class Kaspay_payment_api_client extends Kaspay_api_client {
 }
 
 
+
 /**
- * Kaspay API Client: Escrow
+ *
+ * @author Karol Danutama <karol.danutama@gdpventure.com>
  */
-class Kaspay_escrow_api_client extends Kaspay_api_client {
+class Kaspay_user_api_client extends Kaspay_api_client {
 
-	const URL_HOLD = 'escrow/hold/%s';
-	const URL_RELEASE = 'escrow/release/%s';
-	const URL_REFUND = 'escrow/refund/%s';
-	const URL_STATUS = 'escrow/status/%s';
-	
+	const URL_LINK = 'user/link/%s';
+
+	const URL_UNLINK = 'user/unlink/%s/%s';
+
 	/**
-	 * @param  string $trxid  Perform HOLD operation on this transaction
-	 * @return object(status) status: TRUE
+	 * 
+	 * @param string $merchant_uaccount A uaccount associated with the merchant (API client)
+	 * @param string $approve_url A complete URL for Kaspay to redirect the user after user approval.
+	 * @param string $approve_url A complete URL for Kaspay to redirect the user after user rejection.
+	 * @return object(id,confirmation_url) id:attempt id, confirmation_url: redirect the user to this page for approval
 	 */
-	public function perform_hold($trxid)
+	public function link($merchant_uaccount, $approve_url, $reject_url)
 	{
-		$full_url = sprintf($this->base_url . self::URL_HOLD, $trxid);
-		$this->send_request('POST', $full_url, json_encode(array()));
-	}
-	
-	/**
-	 * @param  string $trxid  Perform RELEASE operation on this transaction
-	 * @return object(status) status: TRUE
-	 */
-	public function perform_release($trxid)
-	{
-		$full_url = sprintf($this->base_url . self::URL_RELEASE, $trxid);
-		$this->send_request('POST', $full_url, json_encode(array()));
-	}
-	
-	/**
-	 * @param  string $trxid  Perform REFUND operation on this transaction
-	 * @return object(status) status: TRUE
-	 */
-	public function perform_refund($trxid)
-	{
-		$full_url = sprintf($this->base_url . self::URL_REFUND, $trxid);
-		$this->send_request('POST', $full_url, json_encode(array()));
+		$full_url = sprintf($this->base_url . self::URL_LINK, $merchant_uaccount);
+		$this->send_request('POST', $full_url, json_encode(array(
+			'approve_url' => $approve_url,
+			'reject_url' => $reject_url
+		)));
 	}
 
 	/**
-	 * @param  string $trxid  Retrieve STATUS of this transaction's escrow
-	 * @return object(status, escrow_status) status: TRUE, escrow_status: Active|Suspended|Released|Refunded
+	 * 
+	 * @param string $uaccount A uaccount associated with a user
+	 * @param string $merchant_uaccount A uaccount associated with the merchant (API client)
+	 * @return object(uaccount,message) uaccount:unlinked uaccount, message: info message
 	 */
-	public function check_status($trxid)
+	public function unlink($uaccount, $merchant_uaccount)
 	{
-		$full_url = sprintf($this->base_url . self::URL_STATUS, $trxid);
-		$this->send_request('GET', $full_url, json_encode(array()));
+		$full_url = sprintf($this->base_url . self::URL_UNLINK, $uaccount, $merchant_uaccount);
+		$this->send_request('POST', $full_url, json_encode(array()));
 	}
+
 }
